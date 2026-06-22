@@ -1,11 +1,8 @@
 import numpy as np
-np.random.seed(0)
+import nnfs
+from nnfs.datasets import spiral_data
 
-X = [[1, 2, 3, 2.5], 
-    [2.0, 5.0, -1.0, 2.0],
-    [-1.5, 2.7, 3.3, -0.8]]
-#input data to the neural network
-#normalize and scale the data? 
+nnfs.init()
 
 class Layer_Dense:
     def __init__(self, n_inputs, n_neurons): #n_inputs is the size of an input
@@ -15,4 +12,19 @@ class Layer_Dense:
 
     def forward(self, inputs):
         self.output = np.dot(inputs, self.weights) + self.biases
+
+class Activation_ReLU:
+    def forward(self, inputs):
+        self.output = np.maximum(0, inputs)
+
+
+#create dataset, 100 feature sets and 3 classes and each feature set has 2 fetures, like (a, b) = featureSet1 (we have 300)
+X, y = spiral_data(samples=100, classes=3)
+#create Dense layer with 2 input features and 3 output values
+layer1 = Layer_Dense(2, 3)
+activation1 = Activation_ReLU()
+
+#perform a forward pass of our training data through this layer
+layer1.forward(X)
+activation1.forward(layer1.output)
 
