@@ -42,6 +42,37 @@ class Activation_Softmax:
         #normalized them
         probabilities = exp_values / np.sum(exp_values, axis=1, keepdims=True)
         self.output = probabilities
+    #despues de la backpropagation de la loss, le toca a softmax. recibe la matriz con los gradientes por sample ((samples, clases))
+    #cuanto afectó cada sample al loss
+    #cada fila es el gradiente de la loss respecto a las probabilidades de ese sample
+    def backward(self, dvalues):
+        #create uninitialized array
+        self.dinputs = np.empty_like(dvalues)
+        #iteramos sample por sample porque cada uno necesita su propia jacobiana
+        #single_output: probabilidades que produjo softmax para este sample [Sclase0, S_clase1, S_clase2]
+        #single_dvalues: gradiente de la loss para este sample [∂L/∂S0clase0, ∂L/∂S0clase1, ∂L/∂S0clase2]
+        for index, (single_output, single_dvalues) in \
+        enumerate(zip(self.output, dvalues)):
+            #flatten output array para poder hacer el dot product
+            single_output = single_output.reshape(-1, 1)
+            #la jacobiana captura como cada z afecta a cada probabilidad dentro del S sample
+            #tiene forma (clases x clases) — celda [i][j] = ∂Si/∂zj
+            #diagflat: pone cada S en la diagonal → representa el término δij * Si
+            #dot: todas las combinaciones Si * Sj → se resta porque softmax, normaliza todo junto, si un S sube los otros bajan
+            #la derivada de softmax es S_i*(δij - S_j) = diagflat - dot
+            #Tenés 3 clases, entonces tenés 3 valores de z y 3 probabilidades en un sample. 
+            #"Si cambio z_j, cuánto cambia S_i?" 3 z y 1 Sample con 3 clases, hay 9 combinaciones posibles. 
+            # ∂S_clase0/∂z_clase0   ∂S_clase0/∂z_clase1   ∂S_clase0/∂z_clase2
+            # ∂S_clase1/∂z_clase0   ∂S_clase1/∂z_clase1   ∂S_clase1/∂z_clase2
+            # ∂S_clase2/∂z_clase0   ∂S_clase2/∂z_clase1   ∂S_clase2/∂z_clase2
+            jacobian_matrix = np.diagflat(single_output) - \
+            np.dot(single_output, single_output.T)
+            #calculate sample-wise gradient and add it to the array of sample gradients
+            #regla de la cadena: jacobiana (3x3) · dvalues (3,) = dinputs (3,)
+            #multiplica cada fila de la jacobiana por el gradiente de la loss y los suma → convierte 
+            #el gradiente respecto a S en gradiente respecto a z
+            #un grad por clase, que le pasamos a la anterior layer
+            self.dinputs[index] = np.dot(jacobian_matrix, single_dvalues)
 
 #common loss class
 class Loss:
