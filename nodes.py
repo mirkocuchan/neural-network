@@ -12,23 +12,26 @@ class Layer_Dense:
 
     def forward(self, inputs):
         self.output = np.dot(inputs, self.weights) + self.biases
-    # Backward pass
+        self.inputs = inputs
+
+    #backward pass
     def backward(self, dvalues):
-        # Gradients on parameters
+        #gradients on parameters
         self.dweights = np.dot(self.inputs.T, dvalues)
         self.dbiases = np.sum(dvalues, axis=0, keepdims=True)
-        # Gradient on values
+        #gradient on values
         self.dinputs = np.dot(dvalues, self.weights.T)
+
 class Activation_ReLU:
     def forward(self, inputs):
         self.output = np.maximum(0, inputs)
+        self.inputs = inputs
     
-        # Backward pass
+        #backward pass
     def backward(self, dvalues):
-        # Since we need to modify the original variable,
-        # let's make a copy of the values first
+        #since we need to modify the original variable, let's make a copy of the values first
         self.dinputs = dvalues.copy()
-        # Zero gradient where input values were negative
+        #zero gradient where input values were negative
         self.dinputs[self.inputs <= 0] = 0
 
 
@@ -91,6 +94,20 @@ class Loss_CategoricalCrossentropy(Loss):
         #losses
         negative_log_likelihoods = -np.log(correct_confidences) #evitando losses negativas con el -
         return negative_log_likelihoods
+    #backward pass, donde el dvalues es el resultado de la red, array of predictions
+    def backward(self, dvalues, y_true):
+        #number of samples
+        samples = len(dvalues)
+        #number of labels in every sample, we'll use the first sample to count them
+        labels = len(dvalues[0])
+        #if labels are sparse, turn them into one-hot vector
+        if len(y_true.shape) == 1:
+            y_true = np.eye(labels)[y_true]
+        #calculate gradient
+        self.dinputs = -y_true / dvalues
+        #normalize gradient
+        self.dinputs = self.dinputs / samples
+
 
 #create dataset, 100 feature sets and 3 classes and each feature set has 2 fetures, like (a, b) = featureSet1 (we have 300)
 X, y = spiral_data(samples=100, classes=3)
