@@ -42,6 +42,7 @@ class Activation_Softmax:
         #normalized them
         probabilities = exp_values / np.sum(exp_values, axis=1, keepdims=True)
         self.output = probabilities
+    #∂L/∂z0 = ∂L/∂S0 * ∂S0/∂z0 (Con la Jacobiana estamos haciendo aS/az)
     #despues de la backpropagation de la loss, le toca a softmax. recibe la matriz con los gradientes por sample ((samples, clases))
     #cuanto afectó cada sample al loss
     #cada fila es el gradiente de la loss respecto a las probabilidades de ese sample
@@ -58,11 +59,11 @@ class Activation_Softmax:
             #la jacobiana captura como cada z afecta a cada probabilidad dentro del S sample
             #tiene forma (clases x clases) — celda [i][j] = ∂Si/∂zj
             #diagflat: pone cada S en la diagonal → representa el término δij * Si
-            #dot: todas las combinaciones Si * Sj → se resta porque softmax, normaliza todo junto, si un S sube los otros bajan
+            #dot: todas las combinacio nes Si * Sj → se resta porque softmax, normaliza todo junto, si un S sube los otros bajan
             #la derivada de softmax es S_i*(δij - S_j) = diagflat - dot
             #Tenés 3 clases, entonces tenés 3 valores de z y 3 probabilidades en un sample. 
             #"Si cambio z_j, cuánto cambia S_i?" 3 z y 1 Sample con 3 clases, hay 9 combinaciones posibles. 
-            # ∂S_clase0/∂z_clase0   ∂S_clase0/∂z_clase1   ∂S_clase0/∂z_clase2
+            # ∂S_clase0/∂z_clase0   ∂S_clase0/∂z_clase1   ∂S_clase0/∂z_clase2 Tenés que mirar cómo z0 afectó a todas las probabilidades — S(clases0, 1 y 2) — porque Softmax las mezcla todas.
             # ∂S_clase1/∂z_clase0   ∂S_clase1/∂z_clase1   ∂S_clase1/∂z_clase2
             # ∂S_clase2/∂z_clase0   ∂S_clase2/∂z_clase1   ∂S_clase2/∂z_clase2
             jacobian_matrix = np.diagflat(single_output) - \
@@ -72,7 +73,11 @@ class Activation_Softmax:
             #multiplica cada fila de la jacobiana por el gradiente de la loss y los suma → convierte 
             #el gradiente respecto a S en gradiente respecto a z
             #un grad por clase, que le pasamos a la anterior layer
+            #cuánto afectó cada z al error.
             self.dinputs[index] = np.dot(jacobian_matrix, single_dvalues)
+            #dvalues que vienen de la Loss son la derivada de la Loss respecto a cada probabilidad S:
+            #dvalues = [∂L/∂S_clase0, ∂L/∂S_clase1, ∂L/∂S_clase2]
+            #"Si cambio la probabilidad de clase0 un poquito, cuánto cambia el error total."
 
 #common loss class
 class Loss:
@@ -139,6 +144,35 @@ class Loss_CategoricalCrossentropy(Loss):
         #normalize gradient
         self.dinputs = self.dinputs / samples
 
+#softmax classifier - combined Softmax activation and cross-entropy loss for faster backward step
+class Activation_Softmax_Loss_CategoricalCrossentropy():
+    #creates activation and loss function objects
+    def __init__(self):
+        self.activation = Activation_Softmax()
+        self.loss = Loss_CategoricalCrossentropy()
+    
+    def forward(self, inputs, y_true):
+        #output layer's activation function
+        self.activation.forward(inputs)
+        #set the output
+        self.output = self.activation.output
+        #calculate and return loss value
+        return self.loss.calculate(self.output, y_true)
+    #probabilidades que salieron del Softmax, true results: ​∂L/∂zi​= predicción ​− real
+    def backward(self, dvalues, y_true):
+        #number of samples en el batch
+        samples = len(dvalues)
+        #if labels are one-hot encoded, turn them into discrete values
+        if len(y_true.shape) == 2:
+            y_true = np.argmax(y_true, axis=1)
+        #copy so we can safely modify
+        self.dinputs = dvalues.copy()
+        #calculate gradient, restando 1 en la posición correcta: ŷ - y
+        #we’re taking advantage of the fact that the y being y_true in the code consists of one-hot encoded vectors, 
+        #and for each sample, there is only a singular value of 1 in these vectors and the remaining positions are filled with zeros.
+        self.dinputs[range(samples), y_true] -= 1
+        #normalize gradient
+        self.dinputs = self.dinputs / samples
 
 #create dataset, 100 feature sets and 3 classes and each feature set has 2 fetures, like (a, b) = featureSet1 (we have 300)
 X, y = spiral_data(samples=100, classes=3)
@@ -149,10 +183,14 @@ activation1 = Activation_ReLU()
 
 #create second Dense layer with 3 input features (as we take output of previous layer here) and 3 output values
 layer2 = Layer_Dense(3, 3) #lo tomamos como output layer y decimos 3 por las 3 clases 
-activation2 = Activation_Softmax() 
 
-#create loss function
-loss_function = Loss_CategoricalCrossentropy()
+#create Softmax classifier's combined loss and activation
+loss_activation = Activation_Softmax_Loss_CategoricalCrossentropy()
+
+    #for the slower version
+    #activation2 = Activation_Softmax() 
+    #create loss function
+    #loss_function = Loss_CategoricalCrossentropy()
 
 #perform a forward pass of our training data through this layer
 layer1.forward(X)
@@ -160,17 +198,26 @@ layer1.forward(X)
 activation1.forward(layer1.output)
 
 layer2.forward(activation1.output)
-activation2.forward(layer2.output)
 
-#ahora tenemos el output de la softmax, probabilities
+    #slower version
+    #activation2.forward(layer2.output)
+    #ahora tenemos el output de la softmax, probabilities
+    #perform a forward pass through loss function, it takes the output of second dense layer here and returns loss
+    #loss = loss_function.calculate(activation2.output, y) #y son los correct results
 
-#perform a forward pass through loss function, it takes the output of second dense layer here and returns loss
-loss = loss_function.calculate(activation2.output, y) #y son los correct results
+#perform a forward pass through the activation/loss function, it takes the output of second dense layer here and returns loss
+loss = loss_activation.forward(layer2.output, y)
 
 #calculate accuracy from output of activation2 and targets, calculate values along first axis
-predictions = np.argmax(activation2.output, axis=1)
+predictions = np.argmax(loss_activation.output, axis=1)
 #miramos cada fila (cada muestra) y elegimos la clase con mayor probabilidad
 if len(y.shape) == 2: #one hot case, para los y de truth, class targets diferente con varias filas
     y = np.argmax(y, axis=1) #lo aplana y lo convierte de [[1,0,0],[0,1,0],[0,1,0]] a [0,1,1] para sacar la accuracy
 accuracy = np.mean(predictions==y)
 #comparamos predicciones con el truth value y ponele queda algo así: [0,0,1] == [0,1,1] eso es [True, False, True], promedio de esto
+
+#backward pass
+loss_activation.backward(loss_activation.output, y)
+layer2.backward(loss_activation.dinputs)
+activation1.backward(layer2.dinputs)
+layer1.backward(activation1.dinputs)
