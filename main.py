@@ -174,15 +174,27 @@ class Activation_Softmax_Loss_CategoricalCrossentropy():
         #normalize gradient
         self.dinputs = self.dinputs / samples
 
+class Optimizer_SGD:
+    #initialize optimizer - set settings, learning rate of 1. is default for this optimizer
+    def __init__(self, learning_rate=1.0):
+        self.learning_rate = learning_rate
+    #update parameters, weights and bias
+    def update_params(self, layer):
+        layer.weights += -self.learning_rate * layer.dweights
+        layer.biases += -self.learning_rate * layer.dbiases
+        #gradiente positivo → el peso estaba subiendo la loss → lo bajamos
+        #gradiente negativo → el peso estaba bajando la loss → lo subimos
+
+
 #create dataset, 100 feature sets and 3 classes and each feature set has 2 fetures, like (a, b) = featureSet1 (we have 300)
 X, y = spiral_data(samples=100, classes=3)
-#create Dense layer with 2 input features and 3 output values
-layer1 = Layer_Dense(2, 3)
+#create Dense layer with 2 input features and 64 output values
+layer1 = Layer_Dense(2, 64)
 #create ReLU activation (to be used with Dense layer):
 activation1 = Activation_ReLU()
 
-#create second Dense layer with 3 input features (as we take output of previous layer here) and 3 output values
-layer2 = Layer_Dense(3, 3) #lo tomamos como output layer y decimos 3 por las 3 clases 
+#create second Dense layer with 64 input features (as we take output of previous layer here) and 3 output values
+layer2 = Layer_Dense(64, 3) #3 output values (output values)
 
 #create Softmax classifier's combined loss and activation
 loss_activation = Activation_Softmax_Loss_CategoricalCrossentropy()
@@ -192,32 +204,44 @@ loss_activation = Activation_Softmax_Loss_CategoricalCrossentropy()
     #create loss function
     #loss_function = Loss_CategoricalCrossentropy()
 
-#perform a forward pass of our training data through this layer
-layer1.forward(X)
-#forward pass through activation func. #takes in output from previous layer
-activation1.forward(layer1.output)
+#create optimizer
+optimizer = Optimizer_SGD()
 
-layer2.forward(activation1.output)
+# Train in loop
+for epoch in range(10001):
+    #perform a forward pass of our training data through this layer
+    layer1.forward(X)
+    #forward pass through activation func. #takes in output from previous layer
+    activation1.forward(layer1.output)
 
-    #slower version
-    #activation2.forward(layer2.output)
-    #ahora tenemos el output de la softmax, probabilities
-    #perform a forward pass through loss function, it takes the output of second dense layer here and returns loss
-    #loss = loss_function.calculate(activation2.output, y) #y son los correct results
+    layer2.forward(activation1.output)
 
-#perform a forward pass through the activation/loss function, it takes the output of second dense layer here and returns loss
-loss = loss_activation.forward(layer2.output, y)
+        #slower version
+        #activation2.forward(layer2.output)
+        #ahora tenemos el output de la softmax, probabilities
+        #perform a forward pass through loss function, it takes the output of second dense layer here and returns loss
+        #loss = loss_function.calculate(activation2.output, y) #y son los correct results
 
-#calculate accuracy from output of activation2 and targets, calculate values along first axis
-predictions = np.argmax(loss_activation.output, axis=1)
-#miramos cada fila (cada muestra) y elegimos la clase con mayor probabilidad
-if len(y.shape) == 2: #one hot case, para los y de truth, class targets diferente con varias filas
-    y = np.argmax(y, axis=1) #lo aplana y lo convierte de [[1,0,0],[0,1,0],[0,1,0]] a [0,1,1] para sacar la accuracy
-accuracy = np.mean(predictions==y)
-#comparamos predicciones con el truth value y ponele queda algo así: [0,0,1] == [0,1,1] eso es [True, False, True], promedio de esto
+    #perform a forward pass through the activation/loss function, it takes the output of second dense layer here and returns loss
+    loss = loss_activation.forward(layer2.output, y)
 
-#backward pass
-loss_activation.backward(loss_activation.output, y)
-layer2.backward(loss_activation.dinputs)
-activation1.backward(layer2.dinputs)
-layer1.backward(activation1.dinputs)
+    #calculate accuracy from output of activation2 and targets, calculate values along first axis
+    predictions = np.argmax(loss_activation.output, axis=1)
+    #miramos cada fila (cada muestra) y elegimos la clase con mayor probabilidad
+    if len(y.shape) == 2: #one hot case, para los y de truth, class targets diferente con varias filas
+        y = np.argmax(y, axis=1) #lo aplana y lo convierte de [[1,0,0],[0,1,0],[0,1,0]] a [0,1,1] para sacar la accuracy
+    accuracy = np.mean(predictions==y)
+    #comparamos predicciones con el truth value y ponele queda algo así: [0,0,1] == [0,1,1] eso es [True, False, True], promedio de esto
+
+    if not epoch % 100:
+        print(f'epoch: {epoch}, ' + f'acc: {accuracy:.3f}, ' + f'loss: {loss:.3f}')
+
+    #backward pass
+    loss_activation.backward(loss_activation.output, y)
+    layer2.backward(loss_activation.dinputs)
+    activation1.backward(layer2.dinputs)
+    layer1.backward(activation1.dinputs)
+
+    # Update weights and biases
+    optimizer.update_params(layer1)
+    optimizer.update_params(layer2)

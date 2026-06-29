@@ -1,0 +1,84 @@
+La red y los pesos
+Entrada:     x = [1.0, 0.5]
+Clase real:  y_true = 0  (queremos que la clase 0 tenga prob alta)
+
+W1 = [[0.1, 0.2],        b1 = [0, 0]
+      [0.3, 0.4]]
+
+W2 = [[ 0.5, -0.3,  0.2],   b2 = [0, 0, 0]
+      [-0.1,  0.4,  0.1]]
+
+Forward pass (rápido)
+neurona_oculta_1 = ReLU(1.0×0.1 + 0.5×0.3) = ReLU(0.25) = 0.25
+neurona_oculta_2 = ReLU(1.0×0.2 + 0.5×0.4) = ReLU(0.40) = 0.40
+
+logit_clase0 = 0.25×0.5  + 0.40×(-0.1) = 0.085
+logit_clase1 = 0.25×(-0.3) + 0.40×0.4  = 0.085
+logit_clase2 = 0.25×0.2  + 0.40×0.1   = 0.090
+
+prob_clase0 = 0.333
+prob_clase1 = 0.333
+prob_clase2 = 0.334
+
+Backward pass — con nombres
+Paso 1 — ¿Cuánto se equivocó la red en cada clase?
+error_por_clase = probabilidad_predicha - probabilidad_real
+
+prob predicha  = [ 0.333,  0.333,  0.334]
+prob real      = [ 1.0,    0.0,    0.0  ]  ← clase 0 era la correcta
+               ─────────────────────────
+error_por_clase = [-0.667,  0.333,  0.334]
+Qué significa: la clase 0 tiene error -0.667 (la red le dio 0.333 pero debía darle 1.0, le faltó). Las clases 1 y 2 tienen error positivo (la red les dio demasiada probabilidad). Este vector le dice a la red en qué dirección y cuánto ajustar la capa de salida.
+
+Paso 2 — ¿Cuánto hay que cambiar cada peso de W2?
+cuanto_cambiar_W2 = activaciones_ocultas.T  ×  error_por_clase
+
+activaciones_ocultas = [0.25, 0.40]
+error_por_clase      = [-0.667, 0.333, 0.334]
+
+cuanto_cambiar_W2 = [[ 0.25×(-0.667),  0.25×0.333,  0.25×0.334 ],
+                     [ 0.40×(-0.667),  0.40×0.333,  0.40×0.334 ]]
+
+                  = [[-0.167,  0.083,  0.084],
+                     [-0.267,  0.133,  0.134]]
+Qué significa: cada número es cuánto mueve la loss ese peso. Por ejemplo cuanto_cambiar_W2[0][0] = -0.167 dice "si subo el peso W2[0][0] un poco, la loss baja". El optimizador lo va a subir para que la clase 0 gane probabilidad.
+
+Paso 3 — ¿Cuánto error le toca absorber a cada neurona oculta?
+Para seguir propagando hacia atrás, necesitamos saber cuánta culpa tiene cada neurona oculta en el error total.
+culpa_neurona_oculta = error_por_clase  ×  W2.T
+
+W2.T = [[ 0.5, -0.1],
+        [-0.3,  0.4],
+        [ 0.2,  0.1]]
+
+culpa_neurona_1 = (-0.667)×0.5  + 0.333×(-0.3) + 0.334×0.2  = -0.367
+culpa_neurona_2 = (-0.667)×(-0.1) + 0.333×0.4  + 0.334×0.1  = +0.233
+Qué significa: la neurona oculta 1 tiene culpa -0.367 → si sube, la loss baja (bueno, la red va a querer subirla). La neurona 2 tiene culpa +0.233 → si sube, la loss sube (la red va a querer bajarla un poco).
+
+Paso 4 — ¿La culpa pasa por el ReLU o no?
+ReLU es una compuerta: si en el forward pass la neurona se activó (z > 0), la culpa pasa. Si no, la culpa se bloquea y esa neurona no aprende nada.
+activacion_antes_relu_1 = 0.25  → era positiva → compuerta ABIERTA  → multiplico por 1
+activacion_antes_relu_2 = 0.40  → era positiva → compuerta ABIERTA  → multiplico por 1
+
+culpa_que_pasa_relu_1 = -0.367 × 1 = -0.367
+culpa_que_pasa_relu_2 = +0.233 × 1 = +0.233
+Qué significa: en este caso ambas compuertas estaban abiertas así que la culpa pasa sin cambios. Si activacion_antes_relu_1 hubiera sido -2.0, la compuerta estaría cerrada y culpa_que_pasa_relu_1 = 0 → ese peso no se actualizaría → dying ReLU.
+
+Paso 5 — ¿Cuánto hay que cambiar cada peso de W1?
+cuanto_cambiar_W1 = entrada_x.T  ×  culpa_que_pasa_relu
+
+entrada_x         = [1.0, 0.5]
+culpa_que_pasa    = [-0.367, 0.233]
+
+cuanto_cambiar_W1 = [[ 1.0×(-0.367),  1.0×0.233 ],
+                     [ 0.5×(-0.367),  0.5×0.233 ]]
+
+                  = [[-0.367,  0.233],
+                     [-0.183,  0.117]]
+Qué significa: lo mismo que antes pero para W1. cuanto_cambiar_W1[0][0] = -0.367 → el optimizador sube ese peso para reducir la loss.
+
+La actualización final
+Con learning rate lr = 0.01:
+W1_nuevo = W1 - 0.01 × cuanto_cambiar_W1
+W2_nuevo = W2 - 0.01 × cuanto_cambiar_W2
+El signo negativo en la fórmula hace que los pesos con gradiente negativo suban y los positivos bajen — siempre empujando la loss hacia abajo.
