@@ -1,9 +1,15 @@
 import numpy as np
 
 class Layer_Dense:
-    def __init__(self, n_inputs, n_neurons): #n_inputs is the size of an input
+    def __init__(self, n_inputs, n_neurons, weight_regularizer_l1=0, weight_regularizer_l2=0, bias_regularizer_l1=0, bias_regularizer_l2=0): #n_inputs is the size of an input
         self.weights = 0.10 * np.random.randn(n_inputs, n_neurons)  #should be n_neurons, n_inputs to get the weights for the input in a row, but this helps us avoid the .T later 
         self.biases = np.zeros((1, n_neurons))
+
+        #set regularization strength, son los lambda
+        self.weight_regularizer_l1 = weight_regularizer_l1
+        self.weight_regularizer_l2 = weight_regularizer_l2
+        self.bias_regularizer_l1 = bias_regularizer_l1
+        self.bias_regularizer_l2 = bias_regularizer_l2
 
 
     def forward(self, inputs):

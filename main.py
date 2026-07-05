@@ -54,6 +54,11 @@ for epoch in range(10001):
     #perform a forward pass through the activation/loss function, it takes the output of second dense layer here and returns loss
     loss = loss_activation.forward(layer2.output, y)
 
+    #calculate regularization penalty
+    regularization_loss = loss_function.regularization_loss(dense1) + loss_function.regularization_loss(dense2)
+    #calculate overall loss
+    loss = data_loss + regularization_loss
+
     #calculate accuracy from output of activation2 and targets, calculate values along first axis
     predictions = np.argmax(loss_activation.output, axis=1)
     #miramos cada fila (cada muestra) y elegimos la clase con mayor probabilidad
