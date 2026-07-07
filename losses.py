@@ -71,6 +71,7 @@ class Loss_CategoricalCrossentropy(Loss):
         #losses
         negative_log_likelihoods = -np.log(correct_confidences) #evitando losses negativas con el -
         return negative_log_likelihoods
+    
     #backward pass, donde el dvalues es el resultado de la red, array of predictions
     def backward(self, dvalues, y_true):
         #number of samples
@@ -99,6 +100,7 @@ class Activation_Softmax_Loss_CategoricalCrossentropy():
         self.output = self.activation.output
         #calculate and return loss value
         return self.loss.calculate(self.output, y_true)
+    
     #probabilidades que salieron del Softmax, true results: ​∂L/∂zi​= predicción ​− real
     def backward(self, dvalues, y_true):
         #number of samples en el batch

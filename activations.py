@@ -29,8 +29,7 @@ class Activation_Softmax:
         #iteramos sample por sample porque cada uno necesita su propia jacobiana
         #single_output: probabilidades que produjo softmax para este sample [Sclase0, S_clase1, S_clase2]
         #single_dvalues: gradiente de la loss para este sample [∂L/∂S0clase0, ∂L/∂S0clase1, ∂L/∂S0clase2]
-        for index, (single_output, single_dvalues) in \
-        enumerate(zip(self.output, dvalues)):
+        for index, (single_output, single_dvalues) in enumerate(zip(self.output, dvalues)):
             #flatten output array para poder hacer el dot product
             single_output = single_output.reshape(-1, 1)
             #la jacobiana captura como cada z afecta a cada probabilidad dentro del S sample
@@ -43,8 +42,7 @@ class Activation_Softmax:
             # ∂S_clase0/∂z_clase0   ∂S_clase0/∂z_clase1   ∂S_clase0/∂z_clase2 Tenés que mirar cómo z0 afectó a todas las probabilidades — S(clases0, 1 y 2) — porque Softmax las mezcla todas.
             # ∂S_clase1/∂z_clase0   ∂S_clase1/∂z_clase1   ∂S_clase1/∂z_clase2
             # ∂S_clase2/∂z_clase0   ∂S_clase2/∂z_clase1   ∂S_clase2/∂z_clase2
-            jacobian_matrix = np.diagflat(single_output) - \
-            np.dot(single_output, single_output.T)
+            jacobian_matrix = np.diagflat(single_output) - np.dot(single_output, single_output.T)
             #calculate sample-wise gradient and add it to the array of sample gradients
             #regla de la cadena: jacobiana (3x3) · dvalues (3,) = dinputs (3,)
             #multiplica cada fila de la jacobiana por el gradiente de la loss y los suma → convierte 
