@@ -53,3 +53,17 @@ class Activation_Softmax:
             #dvalues que vienen de la Loss son la derivada de la Loss respecto a cada probabilidad S:
             #dvalues = [∂L/∂S_clase0, ∂L/∂S_clase1, ∂L/∂S_clase2]
             #"Si cambio la probabilidad de clase0 un poquito, cuánto cambia el error total."
+
+#sigmoid activation, used for binary classification. what is binary classification? when we have 2 classes, like yes/no, true/false, 0/1.
+class Activation_Sigmoid:
+    #forward pass
+    def forward(self, inputs):
+        #save input and calculate/save output of the sigmoid function
+        self.inputs = inputs
+        #the sigmoid function is defined as 1 / (1 + e^(-x)), where x is the input. This function maps any real-valued number into the range (0, 1), which is useful for binary classification problems. 
+        #the output of the sigmoid function can be interpreted as a probability, making it suitable for tasks where we want to predict the likelihood of a certain class or event occurring.
+        self.output = 1 / (1 + np.exp(-inputs))
+    #backward pass
+    def backward(self, dvalues):
+        #derivative - calculates from output of the sigmoid function, producing the gradient of the loss with respect to the inputs
+        self.dinputs = dvalues * (1 - self.output) * self.output
