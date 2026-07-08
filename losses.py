@@ -117,3 +117,27 @@ class Activation_Softmax_Loss_CategoricalCrossentropy():
         #normalize gradient
         self.dinputs = self.dinputs / samples
 
+#binary cross-entropy loss
+class Loss_BinaryCrossentropy(Loss):
+    #forward pass, toma las predicciones y la ground truth de la muestra
+    def forward(self, y_pred, y_true):
+        #clip data to prevent division by 0, clip both sides to not drag mean towards any value
+        y_pred_clipped = np.clip(y_pred, 1e-7, 1 - 1e-7)
+        #calculate sample-wise loss, how? L=−ylog(y^​)−(1−y)log(1−y^​)
+        sample_losses = -(y_true * np.log(y_pred_clipped) + (1 - y_true) * np.log(1 - y_pred_clipped))
+        sample_losses = np.mean(sample_losses, axis=-1) #why? because we want to average the loss across all output neurons for each sample, giving us a single loss value per sample. 
+        #This is especially important in multi-output scenarios where each output contributes to the overall loss.
+        #return losses
+        return sample_losses
+    #backward pass
+    def backward(self, dvalues, y_true):
+        #number of samples
+        samples = len(dvalues)
+        #number of outputs in every sample, we'll use the first sample to count them
+        outputs = len(dvalues[0])
+        #clip data to prevent division by 0, clip both sides to not drag mean towards any value
+        clipped_dvalues = np.clip(dvalues, 1e-7, 1 - 1e-7)
+        #calculate gradient, why this way? because the derivative of the binary cross-entropy loss with respect to the predicted output is given by the formula: ∂L/∂y^​ = -(y / y^​) + ((1 - y) / (1 - y^​)). This formula captures how the loss changes with respect to small changes in the predicted output, and it is derived from the definition of the binary cross-entropy loss function.
+        self.dinputs = -(y_true / clipped_dvalues - (1 - y_true) / (1 - clipped_dvalues)) / outputs
+        #normalize gradient
+        self.dinputs = self.dinputs / samples
