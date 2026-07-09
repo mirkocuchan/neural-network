@@ -159,7 +159,24 @@ class Loss_MeanSquaredError(Loss): # L2 loss
         samples = len(dvalues)
         #number of outputs in every sample, we'll use the first sample to count them
         outputs = len(dvalues[0])
-        #calculate gradient on values, formula: ∂L/∂y^​ = 2 * (y^​ - y) / n, where n is the number of outputs. This formula captures how the loss changes with respect to small changes in the predicted output, and it is derived from the definition of the mean squared error loss function.
+        #calculate gradient on values, formula: ∂L/∂y^​ = -2 * (y^​ - y) / n, where n is the number of outputs. This formula captures how the loss changes with respect to small changes in the predicted output, and it is derived from the definition of the mean squared error loss function.
         self.dinputs = -2 * (y_true - dvalues) / outputs
         #normalize gradient, why? because we want to average the gradient across all output neurons for each sample, giving us a single gradient value per sample. This is especially important in multi-output scenarios where each output contributes to the overall gradient.
+        self.dinputs = self.dinputs / samples
+
+#mean Absolute Error loss
+class Loss_MeanAbsoluteError(Loss): # L1 loss
+    def forward(self, y_pred, y_true):
+        #calculate loss
+        sample_losses = np.mean(np.abs(y_true - y_pred), axis=-1)
+        return sample_losses
+    #backward pass
+    def backward(self, dvalues, y_true):
+        #number of samples
+        samples = len(dvalues)
+        #number of outputs in every sample, we'll use the first sample to count them
+        outputs = len(dvalues[0])
+        #calculate gradient
+        self.dinputs = np.sign(y_true - dvalues) / outputs
+        #normalize gradient
         self.dinputs = self.dinputs / samples

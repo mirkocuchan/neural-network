@@ -8,6 +8,9 @@ from losses import Activation_Softmax_Loss_CategoricalCrossentropy, Loss_BinaryC
 from optimizers import Optimizer_Adam, Optimizer_SGD
  
 nnfs.init()
+#this also contains binary logistic regression, but we are going to use it for multiclass classification. 
+#there is code in comments that covers blr and the code is tabbed
+
 #training
 #create dataset, 100 feature sets and 3 classes and each feature set has 2 fetures, like (a, b) = featureSet1 (we have 300)
 X, y = spiral_data(samples=100, classes=3)
