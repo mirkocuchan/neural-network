@@ -3,7 +3,7 @@ from activations import Activation_Softmax
 
 #common loss class
 class Loss:
-    #regularization loss calculation
+    #regularization loss calculation, what is regularization loss? it is a penalty term added to the loss function to prevent overfitting by discouraging complex models. It helps to keep the model weights small and reduces the risk of overfitting to the training data.
     def regularization_loss(self, layer):
         #0 by default
         regularization_loss = 0
@@ -31,7 +31,8 @@ class Loss:
         #return loss
         return data_loss
 
-#cross-entropy loss
+#cross-entropy loss, what is it? it is a loss function commonly used for multi-class classification. 
+#it measures the difference between the predicted probability distribution and the true distribution (ground truth) of the classes. The goal is to minimize this loss, which indicates that the model's predictions are getting closer to the actual labels.
 class Loss_CategoricalCrossentropy(Loss):
     #forward pass, toma las predicciones y la ground truth de la muestra
     def forward(self, y_pred, y_true):
@@ -140,4 +141,25 @@ class Loss_BinaryCrossentropy(Loss):
         #calculate gradient, why this way? because the derivative of the binary cross-entropy loss with respect to the predicted output is given by the formula: ∂L/∂y^​ = -(y / y^​) + ((1 - y) / (1 - y^​)). This formula captures how the loss changes with respect to small changes in the predicted output, and it is derived from the definition of the binary cross-entropy loss function.
         self.dinputs = -(y_true / clipped_dvalues - (1 - y_true) / (1 - clipped_dvalues)) / outputs
         #normalize gradient
+        self.dinputs = self.dinputs / samples
+
+#mean Squared Error loss, what is it? it is a loss function that measures the average squared difference between the predicted values and the actual values. It is commonly used for regression tasks, where the goal is to predict continuous values. The MSE loss penalizes larger errors more than smaller ones, making it sensitive to outliers. The formula for MSE is given by: MSE = (1/n) * Σ(y_true - y_pred)^2, where n is the number of samples, y_true are the true values, and y_pred are the predicted values.
+class Loss_MeanSquaredError(Loss): # L2 loss
+    #forward pass
+    def forward(self, y_pred, y_true):
+        #calculate loss, why axis=-1? Specifying axis=-1 sums the squared differences across all output neurons for each sample, resulting in a single loss value per sample.
+        #axis=-1 generates a mean for each row.  
+        sample_losses = np.mean((y_true - y_pred)**2, axis=-1)
+        #return losses, why more than one loss? because we want to calculate the loss for each sample in the batch, giving us a single loss value per sample. This is especially important in multi-output scenarios where each output contributes to the overall loss.
+        return sample_losses
+        #se calcula el mean de estas muestras en la parte de calculate de la loss. ahora tenemos un loss por cada sample, que es lo que queremos, y luego se hace el mean de todos los samples para tener un solo loss. este loss de cada sample fue calculado con el mean de cada output de la sample, porque queremos un solo loss por sample, no por output. si tenemos 3 outputs, queremos un solo loss que represente a los 3 outputs, y luego un solo loss que represente a todas las samples.
+    #backward pass
+    def backward(self, dvalues, y_true):
+        #number of samples
+        samples = len(dvalues)
+        #number of outputs in every sample, we'll use the first sample to count them
+        outputs = len(dvalues[0])
+        #calculate gradient on values, formula: ∂L/∂y^​ = 2 * (y^​ - y) / n, where n is the number of outputs. This formula captures how the loss changes with respect to small changes in the predicted output, and it is derived from the definition of the mean squared error loss function.
+        self.dinputs = -2 * (y_true - dvalues) / outputs
+        #normalize gradient, why? because we want to average the gradient across all output neurons for each sample, giving us a single gradient value per sample. This is especially important in multi-output scenarios where each output contributes to the overall gradient.
         self.dinputs = self.dinputs / samples

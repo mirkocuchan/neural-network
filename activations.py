@@ -67,3 +67,15 @@ class Activation_Sigmoid:
     def backward(self, dvalues):
         #derivative - calculates from output of the sigmoid function, producing the gradient of the loss with respect to the inputs
         self.dinputs = dvalues * (1 - self.output) * self.output
+
+#linear activation, lo que calcula la neurona sale tal cual
+class Activation_Linear:
+    #forward pass
+    def forward(self, inputs):
+        #just remember values, why? because we need them later for the backward pass, when we calculate the gradient of the loss with respect to the inputs. The inputs are needed to compute how changes in the inputs affect the output and, consequently, the loss.
+        self.inputs = inputs
+        self.output = inputs
+    #backward pass
+    def backward(self, dvalues):
+        #derivative is 1, 1 * dvalues = dvalues - the chain rule
+        self.dinputs = dvalues.copy()
