@@ -3,6 +3,8 @@ from activations import Activation_Softmax
 
 #common loss class
 class Loss:
+    def remember_trainable_layers(self, trainable_layers):
+        self.trainable_layers = trainable_layers
     #regularization loss calculation, what is regularization loss? it is a penalty term added to the loss function to prevent overfitting by discouraging complex models. It helps to keep the model weights small and reduces the risk of overfitting to the training data.
     def regularization_loss(self, layer):
         #0 by default
@@ -29,7 +31,7 @@ class Loss:
         #calculate mean loss
         data_loss = np.mean(sample_losses)
         #return loss
-        return data_loss
+        return data_loss, self.regularization_loss()
 
 #cross-entropy loss, what is it? it is a loss function commonly used for multi-class classification. 
 #it measures the difference between the predicted probability distribution and the true distribution (ground truth) of the classes. The goal is to minimize this loss, which indicates that the model's predictions are getting closer to the actual labels.
