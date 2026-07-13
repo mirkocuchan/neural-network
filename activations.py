@@ -53,7 +53,10 @@ class Activation_Softmax:
             #dvalues que vienen de la Loss son la derivada de la Loss respecto a cada probabilidad S:
             #dvalues = [∂L/∂S_clase0, ∂L/∂S_clase1, ∂L/∂S_clase2]
             #"Si cambio la probabilidad de clase0 un poquito, cuánto cambia el error total."
-
+    #calculate predictions for outputs
+    def predictions(self, outputs):
+        return np.argmax(outputs, axis=1)
+    
 #sigmoid activation, used for binary classification. what is binary classification? when we have 2 classes, like yes/no, true/false, 0/1.
 class Activation_Sigmoid:
     #forward pass
@@ -67,7 +70,10 @@ class Activation_Sigmoid:
     def backward(self, dvalues):
         #derivative - calculates from output of the sigmoid function, producing the gradient of the loss with respect to the inputs
         self.dinputs = dvalues * (1 - self.output) * self.output
-
+    #calculate predictions for outputs
+    def predictions(self, outputs):
+        return (outputs > 0.5) * 1
+    
 #linear activation, lo que calcula la neurona sale tal cual
 class Activation_Linear:
     #forward pass
@@ -79,3 +85,6 @@ class Activation_Linear:
     def backward(self, dvalues):
         #derivative is 1, 1 * dvalues = dvalues - the chain rule
         self.dinputs = dvalues.copy()
+    #calculate predictions for outputs
+    def predictions(self, outputs):
+        return outputs

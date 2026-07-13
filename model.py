@@ -1,3 +1,4 @@
+import numpy as np
 from nnfs.datasets import sine_data
 from activations import Activation_ReLU, Activation_Linear
 from layers import Layer_Dense
@@ -21,17 +22,26 @@ class Model:
     def add(self, layer):
         self.layers.append(layer) #adding layers to our model
     #set loss and optimizer, the * means that the arguments must be passed as keyword arguments, not positional arguments. This is a way to enforce clarity in the code, making it explicit which argument is being set. To use this method, you would call it like model.set(loss=loss_function, optimizer=optimizer), clearly indicating which argument is which. This can help prevent mistakes and improve code readability. 
-    def set(self, *, loss, optimizer):
+    def set(self, *, loss, optimizer, accuracy):
         self.loss = loss
         self.optimizer = optimizer
+        self.accuracy = accuracy
+    
     #train the model
     def train(self, X, y, *, epochs=1, print_every=1):
         #main training loop
         for epoch in range(1, epochs+1):
             #perform the forward pass
             output = self.forward(X)
-            #temporary
-            print(output)
+
+            #calculate loss
+            data_loss, regularization_loss = self.loss.calculate(output, y)
+            loss = data_loss + regularization_loss
+            
+            #get predictions and calculate an accuracy
+            predictions = self.output_layer_activation.predictions(output)
+            accuracy = self.accuracy.calculate(predictions, y)
+            
             exit()
 
     #finalize the model
@@ -75,7 +85,30 @@ class Model:
             # "layer" is now the last object from the list, so its output will be the output of the model. We return it at the end of the method, so we can use it for loss calculation and accuracy calculation. The output of the model is the output of the last layer, which is the input to the loss function. The loss function will then calculate the loss based on this output and the true labels.
         # return its output
         return layer.output
-    
+
+#common accuracy class
+class Accuracy:
+    #calculates an accuracy given predictions and ground truth values
+    def calculate(self, predictions, y):
+        #get comparison results
+        comparisons = self.compare(predictions, y)
+        #calculate an accuracy
+        accuracy = np.mean(comparisons)
+        #return accuracy
+        return accuracy# Accuracy calculation for regression model
+
+class Accuracy_Regression(Accuracy):
+    def __init__(self):
+        #create precision property
+        self.precision = None
+    #calculates precision value based on passed in ground truth
+    def init(self, y, reinit=False):
+        if self.precision is None or reinit:
+            self.precision = np.std(y) / 250
+    #compares predictions to the ground truth values
+    def compare(self, predictions, y):
+        return np.absolute(predictions - y) < self.precision
+
 #instantiate the model
 model = Model()
 #add layers
