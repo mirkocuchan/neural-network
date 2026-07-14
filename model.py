@@ -44,8 +44,19 @@ class Model:
             #get predictions and calculate an accuracy
             predictions = self.output_layer_activation.predictions(output)
             accuracy = self.accuracy.calculate(predictions, y)
+
+            #perform backward pass
+            self.backward(output, y)
+
+            #optimize (update parameters)
+            self.optimizer.pre_update_params()
+            for layer in self.trainable_layers:
+                self.optimizer.update_params(layer)
+            self.optimizer.post_update_params()
             
-            exit()
+            #print a summary
+            if not epoch % print_every:
+                print(f'epoch: {epoch}, ' + f'acc: {accuracy:.3f}, ' + f'loss: {loss:.3f} (' + f'data_loss: {data_loss:.3f}, ' + f'reg_loss: {regularization_loss:.3f}), ' + f'lr: {self.optimizer.current_learning_rate}')
 
     #finalize the model
     def finalize(self):
@@ -109,8 +120,8 @@ class Accuracy:
         #calculate an accuracy
         accuracy = np.mean(comparisons)
         #return accuracy
-        return accuracy# Accuracy calculation for regression model
-
+        return accuracy
+#accuracy calculation for regression model
 class Accuracy_Regression(Accuracy):
     def __init__(self):
         #create precision property
@@ -123,6 +134,17 @@ class Accuracy_Regression(Accuracy):
     def compare(self, predictions, y):
         return np.absolute(predictions - y) < self.precision
 
+#accuracy calculation for classification model
+class Accuracy_Categorical(Accuracy):
+    #no initialization is needed
+    def init(self, y):
+        pass
+    #compares predictions to the ground truth values
+    def compare(self, predictions, y):
+        if len(y.shape) == 2:
+            y = np.argmax(y, axis=1)
+        return predictions == y
+
 #instantiate the model
 model = Model()
 #add layers
@@ -134,7 +156,7 @@ model.add(Layer_Dense(64, 1))
 model.add(Activation_Linear())
 
 #set loss and optimizer objects
-model.set(loss=Loss_MeanSquaredError(), optimizer=Optimizer_Adam(learning_rate=0.005, decay=1e-3),)
+model.set(loss=Loss_MeanSquaredError(), optimizer=Optimizer_Adam(learning_rate=0.005, decay=1e-3), accuracy=Accuracy_Regression())
 
 #finalize the model
 model.finalize()
