@@ -29,6 +29,9 @@ class Model:
     
     #train the model
     def train(self, X, y, *, epochs=1, print_every=1):
+        #initialize accuracy object
+        self.accuracy.init(y)
+
         #main training loop
         for epoch in range(1, epochs+1):
             #perform the forward pass
@@ -74,6 +77,8 @@ class Model:
             #if layer contains an attribute called "weights", it's a trainable layer - add it to the list of trainable layers. We don't need to check for biases - checking for weights is enough
             if hasattr(self.layers[i], 'weights'):
                 self.trainable_layers.append(self.layers[i])
+        #update loss object with trainable layers
+        self.loss.remember_trainable_layers(self.trainable_layers)
 
     #performs forward pass
     def forward(self, X):
@@ -85,6 +90,15 @@ class Model:
             # "layer" is now the last object from the list, so its output will be the output of the model. We return it at the end of the method, so we can use it for loss calculation and accuracy calculation. The output of the model is the output of the last layer, which is the input to the loss function. The loss function will then calculate the loss based on this output and the true labels.
         # return its output
         return layer.output
+    
+    #performs backward pass
+    def backward(self, output, y):
+        #first call backward method on the loss, this will set dinputs property that the last layer will try to access shortly
+        self.loss.backward(output, y)
+        #call backward method going through all the objects in reversed order passing dinputs as a parameter
+        for layer in reversed(self.layers):
+            layer.backward(layer.next.dinputs)
+
 
 #common accuracy class
 class Accuracy:
