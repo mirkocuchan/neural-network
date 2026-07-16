@@ -51,9 +51,13 @@ class Layer_Dropout:
         #store rate, we invert it as for example for dropout of 0.1 we need success rate of 0.9
         self.rate = 1 - rate
     #forward pass
-    def forward(self, inputs):
+    def forward(self, inputs, training):
         #save input values, we need them for the backward pass
         self.inputs = inputs
+        #if not in the training mode - return values
+        if not training:
+            self.output = inputs.copy()
+            return
         #generate and save scaled mask, we divide by self.rate to scale the values up to not change the expected value of the neurons
         self.binary_mask = np.random.binomial(1, self.rate, size=inputs.shape) / self.rate #para que no quede distinto el training con el validation
         #apply mask to output values, 1 means keep neuron output; 0 means drop neuron output. 
