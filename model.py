@@ -1,8 +1,8 @@
 import numpy as np
-from nnfs.datasets import sine_data
-from activations import Activation_ReLU, Activation_Linear
-from layers import Layer_Dense
-from losses import Loss_MeanSquaredError
+from nnfs.datasets import sine_data, spiral_data
+from activations import Activation_ReLU, Activation_Linear, Activation_Sigmoid, Activation_Softmax
+from layers import Layer_Dense, Layer_Dropout
+from losses import Loss_MeanSquaredError, Loss_BinaryCrossentropy, Loss_CategoricalCrossentropy, Activation_Softmax_Loss_CategoricalCrossentropy
 from optimizers import Optimizer_Adam
 
 #input "layer", this is not a real layer, but a placeholder for the input data. It doesn't have weights or biases, it just passes the input data to the next layer.
@@ -16,6 +16,9 @@ class Model:
     def __init__(self):
         #create a list of network objects
         self.layers = []
+        #softmax classifier's output object
+        self.softmax_classifier_output = None
+
     #add objects to the model
     def add(self, layer):
         self.layers.append(layer) #adding layers to our model
@@ -99,8 +102,16 @@ class Model:
             #if layer contains an attribute called "weights", it's a trainable layer - add it to the list of trainable layers. We don't need to check for biases - checking for weights is enough
             if hasattr(self.layers[i], 'weights'):
                 self.trainable_layers.append(self.layers[i])
+            
+            #update loss object with trainable layers
+            self.loss.remember_trainable_layers(self.trainable_layers)
+
+        #if output activation is Softmax and loss function is Categorical Cross-Entropy, create an object of combined activation
+        #and loss function containing faster gradient calculation
+        if isinstance(self.layers[-1], Activation_Softmax) and isinstance(self.loss, Loss_CategoricalCrossentropy):
+            #create an object of combined activation and loss functions
+            self.softmax_classifier_output = Activation_Softmax_Loss_CategoricalCrossentropy()
         #update loss object with trainable layers
-        self.loss.remember_trainable_layers(self.trainable_layers)
 
     #performs forward pass
     def forward(self, X, training):
@@ -115,6 +126,18 @@ class Model:
     
     #performs backward pass
     def backward(self, output, y):
+        #if we used softmax classifier and categorical loss entropy
+        if self.softmax_classifier_output is not None:
+            #first call backward method on the combined activation/loss: this will set dinputs property
+            self.softmax_classifier_output.backward(output, y)
+            #since we'll not call backward method of the last layer (which is Softmax activation) as we used combined activation/loss object, let's set dinputs in this object
+            #anterior a softmax necesita, para calcular su propio dinputs, el dinputs de la capa que le sigue (Softmax)
+            self.layers[-1].dinputs = self.softmax_classifier_output.dinputs
+            #call backward method going through all the objects but last in reversed order passing dinputs as a parameter
+            for layer in reversed(self.layers[:-1]):
+                layer.backward(layer.next.dinputs)
+            return
+    
         #first call backward method on the loss, this will set dinputs property that the last layer will try to access shortly
         self.loss.backward(output, y)
         #call backward method going through all the objects in reversed order passing dinputs as a parameter
@@ -157,22 +180,20 @@ class Accuracy_Categorical(Accuracy):
         return predictions == y
 
 #create train and test dataset
-X, y = spiral_data(samples=100, classes=2)
-X_test, y_test = spiral_data(samples=100, classes=2)
-#reshape labels to be a list of lists, inner list contains one output (either 0 or 1) per each output neuron, 1 in this case
-y = y.reshape(-1, 1)
-y_test = y_test.reshape(-1, 1)
+X, y = spiral_data(samples=1000, classes=3)
+X_test, y_test = spiral_data(samples=100, classes=3)
 
 #instantiate the model
 model = Model()
 #add layers
-model.add(Layer_Dense(2, 64, weight_regularizer_l2=5e-4, bias_regularizer_l2=5e-4))
+model.add(Layer_Dense(2, 512, weight_regularizer_l2=5e-4, bias_regularizer_l2=5e-4))
 model.add(Activation_ReLU())
-model.add(Layer_Dense(64, 1))
-model.add(Activation_Sigmoid())
+model.add(Layer_Dropout(0.1))
+model.add(Layer_Dense(512, 3))
+model.add(Activation_Softmax())
 
 #set loss, optimizer and accuracy objects
-model.set(loss=Loss_BinaryCrossentropy(), optimizer=Optimizer_Adam(decay=5e-7), accuracy=Accuracy_Categorical())
+model.set(loss=Loss_CategoricalCrossentropy(), optimizer=Optimizer_Adam(learning_rate=0.05, decay=5e-5), accuracy=Accuracy_Categorical())
 
 #finalize the model
 model.finalize()
