@@ -15,3 +15,7 @@ __pycache__/
 .DS_Store
 
 .txt
+
+# Dataset descargado
+fashion_mnist_images/
+fashion_mnist_images.zip
