@@ -1,9 +1,17 @@
+from weakref import finalize
 from zipfile import ZipFile
 import os
 import urllib
 import urllib.request
 import numpy as np
 import cv2
+from accuracy import Accuracy_Categorical
+from losses import Loss_CategoricalCrossentropy
+from model import Model
+from layers import Layer_Dense
+from activations import Activation_ReLU, Activation_Softmax
+from optimizers import Optimizer_Adam
+from optimizers import Optimizer_Adam
 
 URL = 'https://nnfs.io/datasets/fashion_mnist_images.zip'
 FILE = 'fashion_mnist_images.zip'
@@ -49,10 +57,16 @@ def create_data_mnist(path):
 
 #create dataset
 X, y, X_test, y_test = create_data_mnist('fashion_mnist_images')
+
+#vamos a shuffle the dataset, to avoid any bias in the order of the samples. definimos keys as a numpy array of integers from 0 to the number of samples in X. This will be used to shuffle the dataset randomly.
+keys = np.array(range(X.shape[0]))
+np.random.shuffle(keys) #shuffle the keys randomly, so that we can use them to shuffle the dataset.
+X = X[keys] #shuffle the dataset using the shuffled keys. This will rearrange the samples in X randomly.
+y = y[keys] #shuffle the labels using the same shuffled keys. This will rearrange the labels in y randomly, corresponding to the shuffled samples in X.
+
 #scale features
 X = (X.astype(np.float32) - 127.5) / 127.5
 X_test = (X_test.astype(np.float32) - 127.5) / 127.5
-
 #reshape to vectors
 X = X.reshape(X.shape[0], -1)
 X_test = X_test.reshape(X_test.shape[0], -1)
@@ -63,21 +77,19 @@ X_test = X_test.reshape(X_test.shape[0], -1)
 # -1 = aplanás 28×28 = 784
 # (60000, 28, 28)  →  (60000, 784)
 
-#vamos a shuffle the dataset, to avoid any bias in the order of the samples. definimos keys as a numpy array of integers from 0 to the number of samples in X. This will be used to shuffle the dataset randomly.
-keys = np.array(range(X.shape[0]))
-np.random.shuffle(keys) #shuffle the keys randomly, so that we can use them to shuffle the dataset.
-X = X[keys] #shuffle the dataset using the shuffled keys. This will rearrange the samples in X randomly.
-y = y[keys] #shuffle the labels using the same shuffled keys. This will rearrange the labels in y randomly, corresponding to the shuffled samples in X.
+# Instantiate the model
+model = Model()
+# Add layers
+model.add(Layer_Dense(X.shape[1], 128))
+model.add(Activation_ReLU())
+model.add(Layer_Dense(128, 64))
+model.add(Activation_ReLU())
+model.add(Layer_Dense(64, 10))
+model.add(Activation_Softmax())
 
-EPOCHS = 10
-BATCH_SIZE = 128 #we take 128 samples at once, this is our batch size. 
-#calculate number of steps
-steps = X.shape[0] // BATCH_SIZE
-#dividing rounds down. if there are some remaining data, but not a full batch, this won't include it. add 1 to include the remaining samples in 1 more step.
-if steps * BATCH_SIZE < X.shape[0]:
-    steps += 1
-for epoch in range(EPOCHS):
-    for step in range(steps):
-        batch_X = X[step*BATCH_SIZE:(step+1)*BATCH_SIZE]
-        batch_y = y[step*BATCH_SIZE:(step+1)*BATCH_SIZE]
-        #now we perform forward pass, loss calculation, backward pass and update parameters
+#set loss, optimizer and accuracy objects
+model.set(loss=Loss_CategoricalCrossentropy(), optimizer=Optimizer_Adam(decay=1e-3), accuracy=Accuracy_Categorical())
+#finalize the model
+model.finalize()
+#train the model
+model.train(X, y, validation_data=(X_test, y_test), epochs=10, batch_size=128, print_every=100)
