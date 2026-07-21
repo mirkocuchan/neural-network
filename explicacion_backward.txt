@@ -82,3 +82,74 @@ Con learning rate lr = 0.01:
 W1_nuevo = W1 - 0.01 × cuanto_cambiar_W1
 W2_nuevo = W2 - 0.01 × cuanto_cambiar_W2
 El signo negativo en la fórmula hace que los pesos con gradiente negativo suban y los positivos bajen — siempre empujando la loss hacia abajo.
+
+
+More comments:
+weights: trainable factor of how much of this input to use
+bias: to offset the output positively or negatively, which can further help us map more real-world types of dynamic
+data
+
+cada neurona tiene sus propios pesos y bias, no depende de la cantidad de muestras que reciba. y los weights[] son entonces los pesos de las neuronas para cada valor de la muestra
+
+la derivada es la pendiente de la recta tangente a una función de una sola variable.
+the derivative of a linear function equals its slope
+
+con la derivada, que es la pendiente de la tangente, vamos a sacar el comportamiento de estos puntos cercanos pero distintos, con el comportamiento de estos puntos vemos el slope, el impacto, la función y tenemos 2 formas de calcular el impacto, la aproximación y la exacta (analytical)
+
+Dense calcula: z=wx+b
+ReLU calcula: a=ReLU(z)
+El loss calcula: L=Loss(a,y_true)
+
+∂a/∂L, si cambia un poquito la salida de ReLU, ¿cuánto cambia el loss?
+
+∂a/∂z, si cambia un poquito la entrada de ReLU, ¿cuánto cambia la salida de ReLU? 1 o 0.
+
+∂z/∂w, z=wx+b ==> derivada es x.
+
+∂L/∂w = ∂L/∂a * ∂a/∂z * x
+El RESULTADO es el gradiente del peso
+
+Lo escrito arriba, tambien se va a hacer para los inputs. Por que? Porque estos vienen del output de la capa anterior. Así como hacemos dmul_dx0 = w[0], vamos a hacer dmul_dw0 = x[0]
+y al final distinguimos entre:
+drelu_dx0 = drelu_dxw0 * dmul_dx0
+drelu_dw0 = drelu_dxw0 * dmul_dw0
+
+Con una sola neurona obteníamos un vector de gradientes respecto a los inputs. Con varias neuronas obtenemos un vector por cada neurona. Como un mismo input alimenta a todas las neuronas de la capa, el gradiente total de ese input es la suma de las contribuciones de todas ellas.
+
+Queremos saber: ¿cuánto contribuyó cada input al error? O sea, calcular ∂L/∂x0, ∂L/∂x1, etc.
+
+Lo que ya tenemos
+Alguien ya calculó cuánto afectó cada neurona al error, y nos lo mandó en dvalues:
+dvalues[0] = ∂L/∂z0   ← cuánto afectó la neurona 0 al error
+dvalues[1] = ∂L/∂z1
+dvalues[2] = ∂L/∂z2
+
+Ahora, ¿cómo afectó x0 al error?
+x0 llegó a las 3 neuronas. Cada camino es:
+∂L/∂x0 via neurona 0  =  ∂L/∂z0 * ∂z0/∂x0  =  dvalues[0] * w00
+∂L/∂x0 via neurona 1  =  ∂L/∂z1 * ∂z1/∂x0  =  dvalues[1] * w10
+∂L/∂x0 via neurona 2  =  ∂L/∂z2 * ∂z2/∂x0  =  dvalues[2] * w20
+El efecto total de x0 es la suma de los 3 caminos:
+∂L/∂x0 = dvalues[0]*w00 + dvalues[1]*w10 + dvalues[2]*w20
+
+Y en el código, como dvalues = [1, 1, 1], eso se simplifica a:
+pythondx0 = sum(weights[0]) * dvalues[0]
+Porque multiplicar por 1 no cambia nada, y sumar los pesos es lo mismo que el producto punto con un vector de 1s.
+
+El problema con Softmax es este:
+Cambiar z_0 no solo afecta S_0 — afecta todas las probabilidades, porque Softmax normaliza todo junto. Entonces la derivada de Softmax no es un vector simple sino una matriz.
+
+La Jacobiana captura todas esas relaciones:
+        ∂S_0/∂z_0  ∂S_0/∂z_1  ∂S_0/∂z_2
+J =     ∂S_1/∂z_0  ∂S_1/∂z_1  ∂S_1/∂z_2
+        ∂S_2/∂z_0  ∂S_2/∂z_1  ∂S_2/∂z_2
+Cada celda [i][j] responde: si cambio z_j, cuánto cambia S_i?
+
+nosotros queremos conseguir como afectan los z al error. mediante el npdot, dvalues es el gradiente de la loss respecto a las probabilidades. o sea, cuánto afectó cada S al error.
+
+Dropout: el p = algo, es como decir "tirá una moneda por cada neurona" y si p = 0.5, cada neurona tiene 50% de chance de quedarse viva (1) y 50% de chance de ser bloqueada (0)
+Con p = 0.8: 80% chance de vivir, 20% chance de ser bloqueada
+
+epoch  = una pasada completa por todos los datos
+step   = una pasada por un batch
+batch  = un grupo de muestras (ej: 128)
