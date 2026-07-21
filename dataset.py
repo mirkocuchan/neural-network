@@ -77,14 +77,14 @@ X_test = X_test.reshape(X_test.shape[0], -1)
 # -1 = aplanás 28×28 = 784
 # (60000, 28, 28)  →  (60000, 784)
 
-# Instantiate the model
+#instantiate the model
 model = Model()
-# Add layers
+#add layers
 model.add(Layer_Dense(X.shape[1], 128))
 model.add(Activation_ReLU())
-model.add(Layer_Dense(128, 64))
+model.add(Layer_Dense(128, 128))
 model.add(Activation_ReLU())
-model.add(Layer_Dense(64, 10))
+model.add(Layer_Dense(128, 10))
 model.add(Activation_Softmax())
 
 #set loss, optimizer and accuracy objects
@@ -93,3 +93,34 @@ model.set(loss=Loss_CategoricalCrossentropy(), optimizer=Optimizer_Adam(decay=1e
 model.finalize()
 #train the model
 model.train(X, y, validation_data=(X_test, y_test), epochs=10, batch_size=128, print_every=100)
+
+#retrieve and print parameters
+parameters = model.get_parameters()
+model.save_parameters('fashion_mnist.parms')
+
+#new model
+#instantiate the model
+model = Model()
+#add layers
+model.add(Layer_Dense(X.shape[1], 128))
+model.add(Activation_ReLU())
+model.add(Layer_Dense(128, 128))
+model.add(Activation_ReLU())
+model.add(Layer_Dense(128, 10))
+model.add(Activation_Softmax())
+#set loss and accuracy objects, we do not set optimizer object this time - there's no need to do it as we won't train the model
+model.set(loss=Loss_CategoricalCrossentropy(),accuracy=Accuracy_Categorical())
+#finalize the model
+model.finalize()
+#set model with parameters instead of training it
+model.set_parameters(parameters)
+#or we can just load the parameters from a file, instead of saving them to a variable and then setting them in the new model. This is useful if we want to save the model parameters to a file and then load them later, without having to keep the parameters in memory.
+#model.load_parameters('fashion_mnist.parms')
+
+#load the model
+#model = Model.load('fashion_mnist.model')
+#the last option would be to save the entire model to a file and then load it later. This is useful if we want to save the entire model, including its architecture, parameters, and optimizer state, to a file and then load it later without having to recreate the model from scratch.
+
+#evaluate the model
+model.evaluate(X_test, y_test)
+

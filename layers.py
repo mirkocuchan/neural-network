@@ -43,6 +43,14 @@ class Layer_Dense:
         
         #gradient on values
         self.dinputs = np.dot(dvalues, self.weights.T)
+    #retrieve layer parameters
+    def get_parameters(self):
+        return self.weights, self.biases
+    #set weights and biases in a layer instance
+    def set_parameters(self, weights, biases):
+        self.weights = weights
+        self.biases = biases
+
 
 #dropout
 class Layer_Dropout:

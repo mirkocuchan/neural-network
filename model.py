@@ -1,5 +1,10 @@
+from os import path
+
 import numpy as np
+import copy
+
 from nnfs.datasets import sine_data, spiral_data
+import pickle
 from activations import Activation_ReLU, Activation_Linear, Activation_Sigmoid, Activation_Softmax
 from layers import Layer_Dense, Layer_Dropout
 from losses import Loss_MeanSquaredError, Loss_BinaryCrossentropy, Loss_CategoricalCrossentropy, Activation_Softmax_Loss_CategoricalCrossentropy
@@ -24,10 +29,13 @@ class Model:
     def add(self, layer):
         self.layers.append(layer) #adding layers to our model
     #set loss and optimizer, the * means that the arguments must be passed as keyword arguments, not positional arguments. This is a way to enforce clarity in the code, making it explicit which argument is being set. To use this method, you would call it like model.set(loss=loss_function, optimizer=optimizer), clearly indicating which argument is which. This can help prevent mistakes and improve code readability. 
-    def set(self, *, loss, optimizer, accuracy):
-        self.loss = loss
-        self.optimizer = optimizer
-        self.accuracy = accuracy
+    def set(self, *, loss=None, optimizer=None, accuracy=None):
+        if loss is not None:
+            self.loss = loss
+        if optimizer is not None:
+            self.optimizer = optimizer
+        if accuracy is not None:
+            self.accuracy = accuracy
     
     #train the model
     def train(self, X, y, *, epochs=1, batch_size=None, print_every=1, validation_data=None):
@@ -103,36 +111,9 @@ class Model:
 
             #if there is the validation data
             if validation_data is not None:
-
-                #reset accumulated values in loss and accuracy objects
-                self.loss.new_pass()
-                self.accuracy.new_pass()
-
-                #iterate over steps
-                for step in range(validation_steps):
-                    #if batch size is not set, train using one step and full dataset
-                    if batch_size is None:
-                        batch_X = X_val
-                        batch_y = y_val
-                    #otherwise slice a batch
-                    else:
-                        batch_X = X_val[step*batch_size:(step+1)*batch_size]
-                        batch_y = y_val[step*batch_size:(step+1)*batch_size]
-
-                    #for better readability
-                    #perform the forward pass
-                    output = self.forward(batch_X, training=False)
-                    #calculate the loss
-                    loss = self.loss.calculate(output, batch_y)
-                    #get predictions and calculate an accuracy
-                    predictions = self.output_layer_activation.predictions(output)
-                    accuracy = self.accuracy.calculate(predictions, batch_y)
-                #get and print validation loss and accuracy
-                validation_loss = self.loss.calculate_accumulated()
-                validation_accuracy = self.accuracy.calculate_accumulated()
-                #print a summary 
-                print(f'validation, ' + f'acc: {validation_accuracy:.3f}, ' + f'loss: {validation_loss:.3f}')
-
+                #evaluate the model:
+                self.evaluate(*validation_data, batch_size=batch_size)
+                #igual a escribir esto: self.evaluate(X_test, y_test, batch_size=batch_size). why? because the * operator unpacks the tuple validation_data into its elements, so that they can be passed as separate arguments to the evaluate method. This is a common pattern in Python for passing a variable number of arguments to a function. In this case, it allows us to pass the validation data (X_val and y_val) as a single argument (the tuple validation_data) and then unpack it into separate arguments when calling the evaluate method.
     #finalize the model
     def finalize(self):
         #create and set the input layer
@@ -165,7 +146,11 @@ class Model:
                 self.trainable_layers.append(self.layers[i])
             
             #update loss object with trainable layers
-            self.loss.remember_trainable_layers(self.trainable_layers)
+            if self.loss is not None:
+                self.loss.remember_trainable_layers(self.trainable_layers)
+                #why? Because the loss function may need to access the trainable layers during backpropagation to compute the gradients of the loss with respect to the weights and biases of these layers. By remembering the trainable layers, the loss function can easily access them when needed, ensuring that the gradients are calculated correctly and efficiently. This is especially important for regularization, where the loss function may need to apply penalties to the weights of the trainable layers to prevent overfitting.
+                #self.loss is not none because we set it in the set() method, which is called before finalize(). This means that when we call finalize(), the loss object has already been created and assigned to self.loss, so we can safely call its methods and access its attributes. If self.loss were None at this point, it would indicate that the loss function has not been set yet, and we would not be able to remember the trainable layers for backpropagation.
+                #why would self.loss be none? importing parameters would let us set them without having to set the loss function, so we need to check if it's none before calling its methods. If we didn't check for this, we would get an error when trying to call a method on a NoneType object. By checking if self.loss is not None, we ensure that we only call the remember_trainable_layers method when the loss function has been set, preventing potential errors and ensuring that the model is properly configured for training and evaluation.
 
         #if output activation is Softmax and loss function is Categorical Cross-Entropy, create an object of combined activation
         #and loss function containing faster gradient calculation
@@ -204,6 +189,97 @@ class Model:
         #call backward method going through all the objects in reversed order passing dinputs as a parameter
         for layer in reversed(self.layers):
             layer.backward(layer.next.dinputs)
+    
+    #evaluates the model using passed in dataset
+    def evaluate(self, X_val, y_val, *, batch_size=None):
+        #default value if batch size is not being set
+        validation_steps = 1
+        #calculate number of steps
+        if batch_size is not None:
+            validation_steps = len(X_val) // batch_size
+        #dividing rounds down. if there are some remaining data, but not a full batch, this won't include it. add `1` to include this not full batch
+        if validation_steps * batch_size < len(X_val):
+            validation_steps += 1
+        
+        #reset accumulated values in loss and accuracy objects
+        self.loss.new_pass()
+        self.accuracy.new_pass()
+        #iterate over steps
+        for step in range(validation_steps):
+        #if batch size is not set - train using one step and full dataset
+            if batch_size is None:
+                batch_X = X_val
+                batch_y = y_val
+            #otherwise slice a batch
+            else:
+                batch_X = X_val[step*batch_size:(step+1)*batch_size]
+                batch_y = y_val[step*batch_size:(step+1)*batch_size]
+            #perform the forward pass
+            output = self.forward(batch_X, training=False)
+            #calculate the loss
+            self.loss.calculate(output, batch_y)
+            #get predictions and calculate an accuracy
+            predictions = self.output_layer_activation.predictions(output)
+            self.accuracy.calculate(predictions, batch_y)
+            
+        #get and print validation loss and accuracy
+        validation_loss = self.loss.calculate_accumulated()
+        validation_accuracy = self.accuracy.calculate_accumulated()
+        print(f'validation, ' + f'acc: {validation_accuracy:.3f}, ' + f'loss: {validation_loss:.3f}')
+    #retrieve and returns parameters of trainable layers
+    def get_parameters(self):
+        #create a list for parameters
+        parameters = []
+        #iterable trainable layers and get their parameters
+        for layer in self.trainable_layers:
+            parameters.append(layer.get_parameters())
+        #return a list
+        return parameters
+    #updates the model with new parameters
+    def set_parameters(self, parameters):
+        #iterate over the parameters and layers and update each layers with each set of the parameters
+        for parameter_set, layer in zip(parameters, self.trainable_layers):
+            layer.set_parameters(*parameter_set)
+    #saves the parameters to a file
+    def save_parameters(self, path):
+        #open a file in the binary-write mode and save parameters to it
+        with open(path, 'wb') as f:
+            pickle.dump(self.get_parameters(), f)
+    #loads the weights and updates a model instance with them
+    def load_parameters(self, path):
+        #open file in the binary-read mode, load weights and update trainable layers
+        with open(path, 'rb') as f:
+            self.set_parameters(pickle.load(f))
+    #saves the model
+    def save(self, path):
+    #make a deep copy of current model instance
+        model = copy.deepcopy(self)
+        
+        #reset accumulated values in loss and accuracy objects
+        model.loss.new_pass()
+        model.accuracy.new_pass()
+        
+        #remove data from input layer and gradients from the loss object
+        model.input_layer.__dict__.pop('output', None) #__dict__ es un atributo que tienen todos los objetos en Python, y es un diccionario que contiene todos los atributos del objeto. pop() es un método de los diccionarios que elimina un elemento del diccionario y lo devuelve. Si el elemento no existe, devuelve None (o un valor por defecto si se proporciona). En este caso, estamos eliminando el atributo 'output' del objeto input_layer del modelo, si existe. Esto es útil para limpiar el modelo antes de guardarlo, ya que no necesitamos guardar los datos de salida de la capa de entrada. 
+        model.loss.__dict__.pop('dinputs', None) #mismo con los gradientes, no necesitamos guardarlos, porque se calculan durante el entrenamiento y no son necesarios para la inferencia. Al eliminar estos atributos, reducimos el tamaño del archivo guardado y evitamos guardar información innecesaria.
+        
+        #for each layer remove inputs, output and dinputs properties
+        for layer in model.layers:
+            for property in ['inputs', 'output', 'dinputs',
+            'dweights', 'dbiases']:
+                layer.__dict__.pop(property, None)
+
+        #open a file in the binary-write mode and save the model
+        with open(path, 'wb') as f:
+            pickle.dump(model, f)
+    #loads and returns a model
+    @staticmethod
+    def load(path):
+        #open file in the binary-read mode, load a model
+        with open(path, 'rb') as f:
+            model = pickle.load(f)
+        #return a model
+        return model
 
 #create train and test dataset
 X, y = spiral_data(samples=1000, classes=3)
@@ -226,3 +302,5 @@ model.finalize()
 
 #train the model
 model.train(X, y, validation_data=(X_test, y_test), epochs=10000, print_every=100)
+
+parameters = model.get_parameters()
