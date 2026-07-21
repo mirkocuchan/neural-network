@@ -280,6 +280,36 @@ class Model:
             model = pickle.load(f)
         #return a model
         return model
+    #predicts on the samples
+    def predict(self, X, *, batch_size=None):
+        #default value if batch size is not being set
+        prediction_steps = 1
+        #calculate number of steps
+        if batch_size is not None:
+            prediction_steps = len(X) // batch_size
+        #dividing rounds down. if there are some remaining data, but not a full batch, this won't include it. add `1` to include this not full batch
+        if prediction_steps * batch_size < len(X):
+            prediction_steps += 1
+
+        #model outputs
+        output = []
+
+        #iterate over steps
+        for step in range(prediction_steps):
+            #if batch size is not set - train using one step and full dataset
+            if batch_size is None:
+                batch_X = X
+            #otherwise slice a batch
+            else:
+                batch_X = X[step*batch_size:(step+1)*batch_size]
+            #perform the forward pass
+            batch_output = self.forward(batch_X, training=False)
+            #append batch prediction to the list of predictions
+            output.append(batch_output)
+
+        #stack and return results. why? because we want to return a single array containing all the predictions, rather than a list of arrays. np.vstack() takes a sequence of arrays and stacks them vertically to create a single array. This is useful for combining the predictions from each batch into a single array that can be easily used for further analysis or evaluation. By returning a single array, we can easily compare the predictions to the true labels and calculate metrics such as accuracy or loss.
+        return np.vstack(output)
+
 
 #create train and test dataset
 X, y = spiral_data(samples=1000, classes=3)
@@ -303,4 +333,3 @@ model.finalize()
 #train the model
 model.train(X, y, validation_data=(X_test, y_test), epochs=10000, print_every=100)
 
-parameters = model.get_parameters()

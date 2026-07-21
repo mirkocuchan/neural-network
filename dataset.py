@@ -124,3 +124,7 @@ model.set_parameters(parameters)
 #evaluate the model
 model.evaluate(X_test, y_test)
 
+#predict on the first 5 samples from validation dataset and print the result
+confidences = model.predict(X_test[:5])
+predictions = model.output_layer_activation.predictions(confidences)
+
