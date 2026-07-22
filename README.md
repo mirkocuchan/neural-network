@@ -4,7 +4,7 @@ A complete implementation of feed-forward neural networks built from scratch in 
 
 This repository is not built on TensorFlow or PyTorch. Every component—from forward propagation to backpropagation and optimization—is implemented manually using **NumPy**.
 
-The goal of this project was to understand how neural networks actually work under the hood rather than relying on high-level frameworks.
+The goal of this project was to understand how neural networks actually work, instead of relying on high-level frameworks.
 
 ---
 
@@ -51,8 +51,6 @@ Implemented from scratch:
 - Binary Cross-Entropy
 - Mean Squared Error (MSE)
 - Mean Absolute Error (MAE)
-
-Including numerical stability techniques such as clipping to avoid logarithm and division errors.
 
 ---
 
@@ -213,8 +211,6 @@ I also gained a much deeper understanding of the mathematical foundations behind
 
 ## Future Improvements
 
-- Dropout
-- Batch Normalization
 - Convolutional Neural Networks (CNNs)
 - Recurrent Neural Networks (RNNs)
 - GPU acceleration
@@ -224,7 +220,3 @@ I also gained a much deeper understanding of the mathematical foundations behind
 - Unit tests
 
 ---
-
-## License
-
-This repository is intended for educational purposes and personal learning.
